@@ -1,0 +1,76 @@
+; When the BIOS runs, it sets up an interrupt descriptor table and 
+; initializes various devices such as the VGA display. This is where 
+; the "Starting SeaBIOS" message you see in the QEMU window comes from.
+
+; After initializing the PCI bus and all the important devices
+; the BIOS knows about, it searches for a bootable device such as
+; a floppy, hard drive, or CD-ROM. Eventually, when it finds
+; a bootable disk, the BIOS reads the boot loader from the disk and
+; transfers control to it.
+
+; Following are a few steps the BIOS does first when booting.
+
+[f000:e05b]    0xfe05b:	cmpl   $0x0,%cs:0x6ac8
+[f000:e062]    0xfe062:	jne    0xfd2e1		; check what?
+[f000:e066]    0xfe066:	xor    %dx,%dx
+[f000:e068]    0xfe068:	mov    %dx,%ss  	;  ss=0x0000
+[f000:e06a]    0xfe06a:	mov    $0x7000,%esp	; esp=0x00007000
+[f000:e070]    0xfe070:	mov    $0xf34c2,%edx	; edx=0x000f34c2
+[f000:e076]    0xfe076:	jmp    0xfd15c
+
+[f000:d15c]    0xfd15c:	mov    %eax,%ecx	; ecx=eax=0, default value?
+[f000:d15f]    0xfd15f:	cli    			; disable interrupts
+[f000:d160]    0xfd160:	cld    			; clear direction flag
+[f000:d161]    0xfd161:	mov    $0x8f,%eax
+[f000:d167]    0xfd167:	out    %al,$0x70	; set up clock
+[f000:d169]    0xfd169:	in     $0x71,%al
+[f000:d16b]    0xfd16b:	in     $0x92,%al	; port:90-9f -> system devices
+[f000:d16d]    0xfd16d:	or     $0x2,%al
+[f000:d16f]    0xfd16f:	out    %al,$0x92
+[f000:d171]    0xfd171:	lidtw  %cs:0x6ab8	; load interrupt description table
+[f000:d177]    0xfd177:	lgdtw  %cs:0x6a74	; load global description table
+[f000:d17d]    0xfd17d:	mov    %cr0,%eax
+[f000:d180]    0xfd180:	or     $0x1,%eax
+[f000:d184]    0xfd184:	mov    %eax,%cr0	; cr.0= 1->protected mode, 0->real mode
+[f000:d187]    0xfd187:	ljmpl  $0x8,$0xfd18f	; ljmp to 32-bit addr (in protected mode)
+
+The target architecture is assumed to be i386
+=> 0xfd18f:	mov    $0x10,%eax
+=> 0xfd194:	mov    %eax,%ds		;  ds=0x10
+=> 0xfd196:	mov    %eax,%es		;  es=0x10
+=> 0xfd198:	mov    %eax,%ss		;  ss=0x10
+=> 0xfd19a:	mov    %eax,%fs		;  fs=0x10
+=> 0xfd19c:	mov    %eax,%gs		;  gs=0x10
+=> 0xfd19e:	mov    %ecx,%eax	; eax=0
+=> 0xfd1a0:	jmp    *%edx		; edx=0xf34c2
+
+=> 0xf34c2:	push   %ebx		; esp=0x6ffc
+=> 0xf34c3:	sub    $0x2c,%esp	; esp=0x6fd0, make room for function parameters?
+=> 0xf34c6:	movl   $0xf5b5c,0x4(%esp)	; *(esp+4)=0xf5b5c
+=> 0xf34ce:	movl   $0xf447b,(%esp)		; *esp=0xf447b
+=> 0xf34d5:	call   0xf099e
+
+;function 1    here esp=0x6fcc
+=> 0xf099e:	lea    0x8(%esp),%ecx	; ecx=esp+8=0x6fd4
+=> 0xf09a2:	mov    0x4(%esp),%edx
+=> 0xf09a6:	mov    $0xf5b58,%eax	; parameters for function 2
+=> 0xf09ab:	call   0xf0574
+
+;function 2
+=> 0xf0574:	push   %ebp
+=> 0xf0575:	push   %edi
+=> 0xf0576:	push   %esi
+=> 0xf0577:	push   %ebx
+=> 0xf0578:	sub    $0xc,%esp
+=> 0xf057b:	mov    %eax,0x4(%esp)
+=> 0xf057f:	mov    %edx,%ebp
+=> 0xf0581:	mov    %ecx,%esi
+=> 0xf0583:	movsbl 0x0(%ebp),%edx
+=> 0xf0587:	test   %dl,%dl
+=> 0xf0589:	je     0xf0758
+=> 0xf058f:	cmp    $0x25,%dl
+=> 0xf0592:	jne    0xf0741
+;...
+=> 0xf0741:	mov    0x4(%esp),%eax
+=> 0xf0745:	call   0xefc70
+;...

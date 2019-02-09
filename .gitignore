@@ -1,4 +1,6 @@
 *.tar.gz
+
+lab1/core
 qemu/
 */obj
 */jos.in
